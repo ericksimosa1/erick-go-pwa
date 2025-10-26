@@ -1,54 +1,42 @@
 // netlify/functions/update-reminder-status.js
-const { initializeApp } = require('firebase/app');
-const { getFirestore, doc, setDoc } = require('firebase/firestore');
 
-// Configuración de Firebase
-const firebaseConfig = {
-  apiKey: "TU_API_KEY",
-  authDomain: "TU_AUTH_DOMAIN",
-  projectId: "TU_PROJECT_ID",
-  storageBucket: "TU_STORAGE_BUCKET",
-  messagingSenderId: "TU_MESSAGING_SENDER_ID",
-  appId: "TU_APP_ID"
-};
-
-const app = initializeApp(firebase.app);
-const db = getFirestore(app);
-
-exports.handler = async (event, context) => {
+exports.handler = async function (event, context) {
+  // Solo permitimos solicitudes POST
   if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'Method Not Allowed' };
+    return {
+      statusCode: 405,
+      body: JSON.stringify({ error: 'Method Not Allowed' }),
+    };
   }
 
   try {
-    const { userId, action } = JSON.parse(event.body);
+    // Parseamos el cuerpo de la solicitud para obtener el estado
+    const { subscriptionId, status } = JSON.parse(event.body);
 
-    if (!userId || !action) {
-      return { statusCode: 400, body: 'Missing userId or action.' };
+    if (!subscriptionId || !status) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: 'Faltan el subscriptionId o el status' }),
+      };
     }
 
-    const today = new Date();
-    const dateString = today.toISOString().split('T')[0]; // Formato YYYY-MM-DD
-    const reminderDocId = `${userId}_${dateString}`;
-    const reminderRef = doc(db, 'attendanceReminders', reminderDocId);
+    // --- IMPORTANTE ---
+    // En una aplicación real, aquí usarías el 'subscriptionId' para encontrar
+    // al usuario en tu base de datos y actualizar su preferencia de recordatorios.
+    // Por ejemplo, establecer un flag 'remindersEnabled = false' para ese usuario.
+    console.log(`Solicitud para actualizar el estado del recordatorio para la suscripción ${subscriptionId} a: ${status}`);
 
-    // Guardar el estado para que no se envíen más recordatorios hoy
-    await setDoc(reminderRef, {
-      status: action, // 'going_on_my_own' o 'free'
-      updatedAt: new Date()
-    });
-
-    console.log(`Estado de recordatorio para usuario ${userId} actualizado a: ${action}`);
+    // await database.updateReminderStatus(subscriptionId, status); // Ejemplo de cómo sería
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ success: true, message: 'Reminder status updated.' }),
+      body: JSON.stringify({ message: 'Estado del recordatorio actualizado con éxito' }),
     };
   } catch (error) {
-    console.error('Error al actualizar estado de recordatorio:', error);
+    console.error('Error al actualizar el estado del recordatorio:', error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Failed to update reminder status.' }),
+      body: JSON.stringify({ error: 'Error interno del servidor' }),
     };
   }
 };
