@@ -1,6 +1,9 @@
 // netlify/functions/save-subscription.js
 
 exports.handler = async function (event, context) {
+  // --- LÍNEA DE DEPURACIÓN AÑADIDA ---
+  console.log('CLAVE PÚBLICA EN NETLIFY:', process.env.VAPID_PUBLIC_KEY);
+
   // Solo permitimos solicitudes POST
   if (event.httpMethod !== 'POST') {
     return {

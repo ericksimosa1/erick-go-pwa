@@ -127,6 +127,7 @@ function AppContent() {
                 if (!subscription) {
                     // ¡IMPORTANTE! Asegúrate de que esta sea tu CLAVE PÚBLICA VAPID
                     const publicVapidKey = 'BL5HL7-NzkovXAWOzhIpDiqBmzBw-x5zOpEnrIqbIkKEGEPf8FOs87_oUcidqrU98-81J2nHXRDQufR6sfyxF2g';
+                    console.log('CLAVE PÚBLICA EN FRONTEND:', publicVapidKey);
                     subscription = await registration.pushManager.subscribe({
                         userVisibleOnly: true,
                         applicationServerKey: urlB64ToUint8Array(publicVapidKey),
