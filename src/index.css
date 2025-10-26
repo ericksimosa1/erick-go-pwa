@@ -1,0 +1,21 @@
+/* src/index.css */
+
+/* Reseteo básico para que se vea igual en todos los navegadores */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
+}
+
+/* Asegura que la app ocupe todo el alto */
+#root {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Fondo claro para la aplicación */
+body {
+  background-color: #fafafa; /* Un fondo gris muy claro y profesional */
+  color: rgba(0, 0, 0, 0.87);
+}

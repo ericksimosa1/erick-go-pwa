@@ -1,0 +1,33 @@
+/* src/App.css */
+
+/* Contenedor principal de la aplicación.
+   Hemos ajustado el padding para que sea menos estricto y se adapte mejor a un dashboard.
+*/
+#root {
+  max-width: 100%; /* Ocupa todo el ancho disponible */
+  margin: 0 auto;
+  padding: 0; /* El padding lo manejarán los componentes internos como MainLayout */
+  text-align: center;
+}
+
+/* Estilos para el logo de "Erick Go".
+   Hemos reemplazado los estilos genéricos por unos más adecuados para una imagen de marca.
+*/
+.app-logo {
+  height: 80px; /* Altura fija para el logo en la barra superior */
+  padding: 8px;
+  transition: opacity 300ms;
+}
+
+.app-logo:hover {
+  opacity: 0.8; /* Efecto hover sutil y profesional */
+}
+
+/* Hemos eliminado las animaciones y estilos de tarjeta genéricos
+   para evitar conflictos con Material-UI, que ahora maneja el aspecto
+   de todos los componentes a través del tema que configuramos en App.jsx */
+
+/* Estilo para textos secundarios o informativos, si lo necesitas en el futuro. */
+.read-the-docs {
+  color: #888;
+}
