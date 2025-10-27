@@ -40,7 +40,6 @@ function AppContent() {
     const [testMessage, setTestMessage] = useState(''); // Mensaje para la notificación de prueba
 
     // --- FUNCIÓN PARA ACTUALIZAR EL ESTADO DEL RECORDATORIO ---
-    // Llama a nuestra función de Netlify para silenciar recordatorios
     const updateReminderStatus = async (action) => {
         if (!user?.uid) {
             console.error('No se puede actualizar el recordatorio sin un usuario logueado.');
@@ -75,7 +74,6 @@ function AppContent() {
     }, []);
 
     // --- EFECTO PARA SUSCRIBIR AL USUARIO A LAS NOTIFICACIONES PUSH ---
-    // Se ejecuta cuando el usuario inicia sesión
     useEffect(() => {
         if (user) {
             subscribeUserToPush();
@@ -83,7 +81,6 @@ function AppContent() {
     }, [user]);
 
     // --- EFECTO PARA ESCUCHAR MENSAJES DEL SERVICE WORKER ---
-    // Maneja la navegación cuando el usuario hace clic en una notificación
     useEffect(() => {
         const handleMessage = (event) => {
             if (event.data && event.data.type === 'NAVIGATE') {
@@ -187,6 +184,21 @@ function AppContent() {
             setTestMessage('No se pudo enviar la notificación. Revisa la consola.');
         }
     };
+
+    // --- NUEVO: FUNCIÓN TEMPORAL PARA DEPURAR CLAVES ---
+    const debugKeys = async () => {
+        console.log('Llamando a la función de depuración de claves...');
+        try {
+            const response = await fetch('/.netlify/functions/debug-keys');
+            const data = await response.json();
+            console.log('--- CLAVES DESDE NETLIFY ---');
+            console.log('Pública:', data.publicKey);
+            console.log('Privada:', data.privateKeyStatus);
+            console.log('-----------------------------');
+        } catch (error) {
+            console.error('Error al llamar a la función de depuración:', error);
+        }
+    };
     
     // --- LÓGICA EXISTENTE DE LA APP ---
     useEffect(() => {
@@ -221,15 +233,20 @@ function AppContent() {
                 <Route path="*" element={<Navigate to="/login" />} />
             </Routes>
 
-            {/* --- NUEVO: BOTÓN DE PRUEBA Y SNACKBARS --- */}
-            {/* Mostramos un botón de prueba solo si el usuario está suscrito */}
-            {subscription && (
-                <Box sx={{ position: 'fixed', bottom: 20, right: 20, zIndex: 9999 }}>
+            {/* --- BOTONES DE PRUEBA Y SNACKBARS --- */}
+            <Box sx={{ position: 'fixed', bottom: 20, right: 20, zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {/* BOTÓN TEMPORAL DE DEPURACIÓN */}
+                <Button variant="outlined" color="error" onClick={debugKeys}>
+                    Depurar Claves VAPID
+                </Button>
+
+                {/* Botón original (se mostrará solo si hay suscripción) */}
+                {subscription && (
                     <Button variant="contained" color="secondary" onClick={sendTestNotification}>
                         Enviar Notificación de Prueba
                     </Button>
-                </Box>
-            )}
+                )}
+            </Box>
 
             {/* Snackbar para el estado del permiso de notificación */}
             <Snackbar open={showPermissionSnackbar} autoHideDuration={6000} onClose={() => setShowPermissionSnackbar(false)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
