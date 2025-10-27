@@ -124,7 +124,6 @@ function AppContent() {
                 if (!subscription) {
                     // ¡IMPORTANTE! Asegúrate de que esta sea tu CLAVE PÚBLICA VAPID
                     const publicVapidKey = 'BL5HL7-NzkovXAWOzhIpDiqBmzBw-x5zOpEnrIqbIkKEGEPf8FOs87_oUcidqrU98-81J2nHXRDQufR6sfyxF2g';
-                    console.log('CLAVE PÚBLICA EN FRONTEND:', publicVapidKey);
                     subscription = await registration.pushManager.subscribe({
                         userVisibleOnly: true,
                         applicationServerKey: urlB64ToUint8Array(publicVapidKey),
@@ -158,7 +157,7 @@ function AppContent() {
         }
     };
     
-    // --- NUEVO: FUNCIÓN PARA ENVIAR UNA NOTIFICACIÓN DE PRUEBA ---
+    // --- FUNCIÓN PARA ENVIAR UNA NOTIFICACIÓN DE PRUEBA ---
     const sendTestNotification = async () => {
         if (!subscription) {
             setTestMessage('No hay una suscripción activa para enviar la notificación.');
@@ -182,21 +181,6 @@ function AppContent() {
         } catch (error) {
             console.error('Error al enviar notificación:', error);
             setTestMessage('No se pudo enviar la notificación. Revisa la consola.');
-        }
-    };
-
-    // --- NUEVO: FUNCIÓN TEMPORAL PARA DEPURAR CLAVES ---
-    const debugKeys = async () => {
-        console.log('Llamando a la función de depuración de claves...');
-        try {
-            const response = await fetch('/.netlify/functions/debug-keys');
-            const data = await response.json();
-            console.log('--- CLAVES DESDE NETLIFY ---');
-            console.log('Pública:', data.publicKey);
-            console.log('Privada:', data.privateKeyStatus);
-            console.log('-----------------------------');
-        } catch (error) {
-            console.error('Error al llamar a la función de depuración:', error);
         }
     };
     
@@ -233,20 +217,15 @@ function AppContent() {
                 <Route path="*" element={<Navigate to="/login" />} />
             </Routes>
 
-            {/* --- BOTONES DE PRUEBA Y SNACKBARS --- */}
-            <Box sx={{ position: 'fixed', bottom: 20, right: 20, zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                {/* BOTÓN TEMPORAL DE DEPURACIÓN */}
-                <Button variant="outlined" color="error" onClick={debugKeys}>
-                    Depurar Claves VAPID
-                </Button>
-
-                {/* Botón original (se mostrará solo si hay suscripción) */}
-                {subscription && (
+            {/* --- BOTÓN DE PRUEBA Y SNACKBARS --- */}
+            {/* Mostramos un botón de prueba solo si el usuario está suscrito */}
+            {subscription && (
+                <Box sx={{ position: 'fixed', bottom: 20, right: 20, zIndex: 9999 }}>
                     <Button variant="contained" color="secondary" onClick={sendTestNotification}>
                         Enviar Notificación de Prueba
                     </Button>
-                )}
-            </Box>
+                </Box>
+            )}
 
             {/* Snackbar para el estado del permiso de notificación */}
             <Snackbar open={showPermissionSnackbar} autoHideDuration={6000} onClose={() => setShowPermissionSnackbar(false)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
