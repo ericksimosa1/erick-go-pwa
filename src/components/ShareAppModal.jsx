@@ -9,7 +9,7 @@ import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import CloseIcon from '@mui/icons-material/Close';
 
 // *** IMPORTANTE: Reemplaza esta URL con la URL de tu aplicación desplegada ***
-const APP_URL = "https://mi-app-de-transporte-301c7.web.app/"; 
+const APP_URL = "https://erick-go-pwa.netlify.app/"; 
 
 const TabPanel = (props) => {
     const { children, value, index, ...other } = props;

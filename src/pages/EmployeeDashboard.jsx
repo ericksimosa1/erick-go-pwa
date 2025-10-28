@@ -35,7 +35,7 @@ export default function EmployeeDashboard() {
     const [selectedZone, setSelectedZone] = useState(null);
     const [initialized, setInitialized] = useState(false); // Nuevo estado para controlar inicialización
 
-    // --- NUEVA FUNCIÓN PARA ENVIAR NOTIFICACIONES DE ASISTENCIA REGISTRADA ---
+    // --- NUEVA FUNCIÓN PARA ENVIAR NOTIFICACIONES DE ASISTENCIA REGISTRADA (CORREGIDA) ---
     const sendAttendanceNotificationToDrivers = async (zoneId, zoneName) => {
         console.log(`Enviando notificación de asistencia a conductores de la zona ${zoneName}...`);
         
@@ -52,13 +52,16 @@ export default function EmployeeDashboard() {
             // 1. Obtener los IDs de los conductores asignados a esta zona
             const driverIds = await fetchDriversByZone(selectedClientId, zoneId);
 
-            if (driverIds.length === 0) {
-                console.log(`No hay conductores asignados a la zona ${zoneName}. No se envían notificaciones.`);
+            // 2. FILTRAR para asegurar que solo queden IDs de cadenas de texto válidas
+            const validDriverIds = driverIds.filter(id => id && typeof id === 'string');
+
+            if (validDriverIds.length === 0) {
+                console.log(`No hay conductores válidos asignados a la zona ${zoneName}. No se envían notificaciones.`);
                 return;
             }
 
-            // 2. Crear un array de promesas para enviar todas las notificaciones en paralelo
-            const notificationPromises = driverIds.map(driverId => {
+            // 3. Crear un array de promesas para enviar todas las notificaciones en paralelo
+            const notificationPromises = validDriverIds.map(driverId => {
                 return fetch('/.netlify/functions/send-notification', {
                     method: 'POST',
                     headers: {
@@ -71,9 +74,9 @@ export default function EmployeeDashboard() {
                 });
             });
 
-            // 3. Esperar a que todas las promesas se resuelvan
+            // 4. Esperar a que todas las promesas se resuelvan
             await Promise.all(notificationPromises);
-            console.log(`Notificaciones de asistencia enviadas exitosamente a ${driverIds.length} conductores.`);
+            console.log(`Notificaciones de asistencia enviadas exitosamente a ${validDriverIds.length} conductores.`);
         } catch (error) {
             console.error('Error al enviar una o más notificaciones de asistencia:', error);
         }
@@ -453,7 +456,7 @@ export default function EmployeeDashboard() {
                     </List>
                 ) : (
                     <Alert severity="info" sx={{ mt: 2 }}>
-                        No hay zonas registradas para esta empresa. Contacta al administrador.
+                        No hay zonas registradas para esta empresa. Contacte al administrador.
                     </Alert>
                 )}
                 
