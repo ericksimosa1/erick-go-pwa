@@ -30,6 +30,31 @@ export const useFirestore = () => {
         return null;
     }, []);
 
+    // NUEVA FUNCIÓN: Obtener administradores globales (no vinculados a empresas)
+    const fetchGlobalAdministrators = useCallback(async () => {
+        try {
+            const usersCollection = collection(db, 'usuarios');
+            const q = query(usersCollection, where('rol', '==', 'administrador'));
+            const querySnapshot = await getDocs(q);
+            
+            if (querySnapshot.empty) {
+                console.log("No se encontraron administradores globales");
+                return [];
+            }
+            
+            const administrators = querySnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            
+            console.log(`Se encontraron ${administrators.length} administradores globales`);
+            return administrators;
+        } catch (error) {
+            console.error("Error al obtener administradores globales:", error);
+            return [];
+        }
+    }, []);
+
     const fetchUsersByClient = useCallback(async (clientId) => {
         if (!clientId) return [];
         console.log(`[fetchUsersByClient] Iniciando carga para clientId: ${clientId}`);
@@ -1063,6 +1088,7 @@ export const useFirestore = () => {
         fetchUsers, updateUser,
         fetchUserByEmail,
         fetchUsersByClient,
+        fetchGlobalAdministrators, // NUEVA FUNCIÓN EXPORTADA
         fetchUserVinculos, updateUserVinculo, deactivateUserVinculo,
         createVinculo,
         fetchClients, addClient, updateClient, deleteClient,
