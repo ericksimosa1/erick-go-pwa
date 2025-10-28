@@ -94,12 +94,16 @@ export default function DriverDashboard() {
         }
     };
 
-    // --- NUEVA FUNCIÓN PARA ENVIAR ESTADO DEL VIAJE A ADMINISTRADORES ---
+    // --- NUEVA FUNCIÓN PARA ENVIAR ESTADO DEL VIAJE A ADMINISTRADORES (CORREGIDA) ---
     const sendTripStatusToAdmins = async (status, driverName, employeeCount) => {
         console.log(`Enviando notificación de viaje ${status} a administradores...`);
         
-        // 1. Obtener la lista de administradores para esta empresa
-        const admins = allUsers.filter(u => u.userData.rol === 'administrador');
+        // 1. Obtener la lista de administradores para esta empresa de forma segura
+        const admins = allUsers.filter(u => u && u.userData && u.userData.rol === 'administrador');
+        
+        // --- LÍNEA DE VERIFICACIÓN ---
+        console.log('VERIFICACIÓN: Lista de usuarios filtrados como administradores:', admins);
+
         if (admins.length === 0) {
             console.log("No hay administradores en esta empresa para notificar.");
             return;
