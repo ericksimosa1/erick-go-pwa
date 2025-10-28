@@ -103,10 +103,10 @@ function AppContent() {
         return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
     }, [user]);
 
-    // --- FUNCIÓN PARA SUSCRIBIR AL USUARIO ---
+    // --- FUNCIÓN PARA SUSCRIBIR AL USUARIO (VERSIÓN CORREGIDA) ---
     const subscribeUserToPush = async () => {
         if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-            console.error('Las notificaciones push no son compatibles con este navegador.');
+            console.warn('Las notificaciones push no son compatibles con este navegador.');
             return;
         }
 
@@ -136,7 +136,15 @@ function AppContent() {
                 console.log('El usuario no ha concedido permiso para las notificaciones.');
             }
         } catch (error) {
-            console.error('Error al suscribir al usuario:', error);
+            // --- ESTE ES EL CAMBIO CLAVE ---
+            // Manejamos el error de forma específica y elegante.
+            if (error.name === 'AbortError' && error.message.includes('push service error')) {
+                // Es un error de bloqueo (como en Brave). Lo registramos como una advertencia simple.
+                console.warn('No se pudo suscribir al usuario a las notificaciones push. El navegador podría estar bloqueando el servicio de push.');
+            } else {
+                // Es cualquier otro error inesperado. Lo registramos como un error grave.
+                console.error('Error inesperado al suscribir al usuario:', error);
+            }
         }
     };
 
