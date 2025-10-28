@@ -3,7 +3,7 @@
 // --- LÓGICA DE CACHÉ (PWA) ---
 // Esta sección es excelente para que tu app funcione sin internet.
 
-const CACHE_NAME = 'erick-go-cache-v2';
+const CACHE_NAME = 'erick-go-cache-v3'; // <-- CAMBIO: Versión de caché actualizada para forzar la limpieza.
 const urlsToCache = [
   '/',
   '/erick-go-logo.png',
@@ -50,42 +50,40 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        // Si el recurso está en caché, lo devuelve.
-        if (response) {
-          return response;
-        }
-        
-        // Si no, intenta obtenerlo de la red.
-        return fetch(event.request)
-          .then(response => {
-            // Verifica si la respuesta es válida antes de guardarla.
+  // Estrategia: Cache First. Solo para peticiones GET de nuestro propio dominio.
+  if (event.request.method === 'GET' && event.request.url.startsWith(self.location.origin)) {
+    event.respondWith(
+      caches.match(event.request)
+        .then(response => {
+          // Si está en caché, la devuelve.
+          if (response) {
+            return response;
+          }
+
+          // Si no, la pide a la red.
+          return fetch(event.request).then(response => {
+            // Si la respuesta no es válida, no la cachea.
             if (!response || response.status !== 200 || response.type !== 'basic') {
               return response;
             }
-            
-            // Clona la respuesta para poder guardarla en caché y devolverla al mismo tiempo.
+
+            // Clona la respuesta para guardarla en caché.
             const responseToCache = response.clone();
-            
+
             caches.open(CACHE_NAME)
               .then(cache => {
                 cache.put(event.request, responseToCache);
               });
-              
+
             return response;
-          })
-          .catch(error => {
-            console.error('Service Worker: Error en la petición de red, sirviendo desde caché si es posible:', error);
-            
-            // Si es una petición de página y falla la red, sirve la página principal desde la caché.
-            if (event.request.destination === 'document') {
-              return caches.match('/');
-            }
           });
-      })
-  );
+        })
+    );
+  } else {
+    // Para cualquier otra petición (POST, extensiones, etc.), simplemente la deja pasar.
+    // No intentamos cachearla ni interceptarla.
+    return;
+  }
 });
 
 
