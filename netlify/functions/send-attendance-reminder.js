@@ -8,44 +8,77 @@ const PRIVATE_VAPID_KEY = process.env.VAPID_PRIVATE_KEY;
 
 // Es necesario configurar el 'subject' con tu email o sitio web
 webPush.setVapidDetails(
-  'mailto:tu-erickgoapp@gmail.com', // <-- CAMBIA ESTO por el mismo email que antes
+  'mailto:erickgoapp@gmail.com',
   PUBLIC_VAPID_KEY,
   PRIVATE_VAPID_KEY
 );
 
+// Función para obtener administradores globales desde Firebase
+async function getGlobalAdministrators() {
+  try {
+    const admin = require('firebase-admin');
+    
+    // Inicializar Firebase Admin si no está inicializado
+    if (!admin.apps.length) {
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
+        }),
+        databaseURL: `https://${process.env.FIREBASE_PROJECT_ID}.firebaseio.com`
+      });
+    }
+    
+    const db = admin.firestore();
+    const usersRef = db.collection('usuarios');
+    const snapshot = await usersRef.where('rol', '==', 'administrador').get();
+    
+    if (snapshot.empty) {
+      console.log('No se encontraron administradores globales');
+      return [];
+    }
+    
+    const administrators = [];
+    snapshot.forEach(doc => {
+      administrators.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+    
+    console.log(`Se encontraron ${administrators.length} administradores globales`);
+    return administrators;
+  } catch (error) {
+    console.error('Error al obtener administradores globales:', error);
+    return [];
+  }
+}
+
 exports.handler = async function (event, context) {
   try {
-    // --- IMPORTANTE ---
-    // En una aplicación real, aquí harías una consulta a tu base de datos
-    // para obtener la lista de todas las suscripciones activas.
-    // Por ahora, como no tenemos base de datos, esta función no hará nada
-    // hasta que la conectemos a un sistema de almacenamiento.
-    console.log('Función de recordatorio activada. Buscando suscripciones...');
-
-    // const subscriptions = await database.getAllSubscriptions(); // Ejemplo de cómo sería
-
-    // if (subscriptions.length === 0) {
-    //   return { statusCode: 200, body: 'No hay suscriptores a quienes notificar.' };
-    // }
-
-    // const payload = JSON.stringify({
-    //   title: 'Recordatorio de Transporte',
-    //   body: 'Tu servicio de transporte está por llegar. ¡Esté listo!',
-    //   icon: '/icons/icon-192x192.png',
-    // });
-
-    // for (const subscription of subscriptions) {
-    //   try {
-    //     await webPush.sendNotification(subscription, payload);
-    //     console.log('Recordatorio enviado a:', subscription.endpoint);
-    //   } catch (error) {
-    //     console.error('Error al enviar recordatorio a:', subscription.endpoint, error);
-    //   }
-    // }
-
+    console.log('Función de recordatorio activada. Buscando administradores...');
+    
+    // Obtener administradores globales
+    const administrators = await getGlobalAdministrators();
+    
+    if (administrators.length === 0) {
+      return { 
+        statusCode: 200, 
+        body: JSON.stringify({ message: 'No hay administradores a quienes notificar.' }) 
+      };
+    }
+    
+    console.log(`Se encontraron ${administrators.length} administradores`);
+    
+    // Aquí podrías enviar notificaciones a todos los administradores
+    // Por ahora, mantenemos la lógica original
+    
     return {
       statusCode: 200,
-      body: JSON.stringify({ message: 'Función de recordatorio ejecutada (sin lógica de base de datos aún).' }),
+      body: JSON.stringify({ 
+        message: `Función de recordatorio ejecutada. Se encontraron ${administrators.length} administradores.` 
+      }),
     };
   } catch (error) {
     console.error('Error en la función de recordatorio:', error);
