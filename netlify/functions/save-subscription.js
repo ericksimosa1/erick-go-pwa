@@ -6,7 +6,7 @@ const admin = require('firebase-admin');
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
+      project_id: process.env.FIREBASE_PROJECT_ID, // Cambiado a project_id
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
       privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
     }),
@@ -17,7 +17,6 @@ if (!admin.apps.length) {
 exports.handler = async function (event, context) {
   console.log('CLAVE PÚBLICA EN NETLIFY:', process.env.VAPID_PUBLIC_KEY);
 
-  // Solo permitimos solicitudes POST
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
@@ -26,7 +25,6 @@ exports.handler = async function (event, context) {
   }
 
   try {
-    // Parseamos el cuerpo de la solicitud para obtener la suscripción
     const { userId, subscription } = JSON.parse(event.body);
 
     if (!userId || !subscription) {

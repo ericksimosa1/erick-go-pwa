@@ -6,7 +6,7 @@ const admin = require('firebase-admin');
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
+      project_id: process.env.FIREBASE_PROJECT_ID, // Cambiado a project_id
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
       privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
     }),
@@ -15,7 +15,6 @@ if (!admin.apps.length) {
 }
 
 exports.handler = async function (event, context) {
-  // Solo permitimos solicitudes POST
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
@@ -24,10 +23,8 @@ exports.handler = async function (event, context) {
   }
 
   try {
-    // Parseamos el cuerpo de la solicitud
     const { userId, status, subscriptionId } = JSON.parse(event.body);
 
-    // Preferimos userId sobre subscriptionId
     if (!userId && !subscriptionId) {
       return {
         statusCode: 400,
@@ -44,7 +41,6 @@ exports.handler = async function (event, context) {
 
     const db = admin.firestore();
     
-    // Si tenemos userId, actualizamos directamente
     if (userId) {
       await db.collection('suscripciones').doc(userId).update({
         remindersEnabled: status,
@@ -53,7 +49,6 @@ exports.handler = async function (event, context) {
       
       console.log(`Preferencia de recordatorios actualizada para usuario ${userId}: ${status}`);
     } 
-    // Si solo tenemos subscriptionId, buscamos el usuario
     else if (subscriptionId) {
       const subscriptionsRef = db.collection('suscripciones');
       const snapshot = await subscriptionsRef.where('subscription.endpoint', '==', subscriptionId).get();
@@ -65,7 +60,6 @@ exports.handler = async function (event, context) {
         };
       }
       
-      // Actualizar todos los documentos que coincidan (debería ser solo uno)
       const batch = db.batch();
       snapshot.forEach(doc => {
         batch.update(doc.ref, {
