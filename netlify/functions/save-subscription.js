@@ -1,7 +1,20 @@
 // netlify/functions/save-subscription.js
 
+const admin = require('firebase-admin');
+
+// Inicializar Firebase Admin si no está inicializado
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
+    }),
+    databaseURL: `https://${process.env.FIREBASE_PROJECT_ID}.firebaseio.com`
+  });
+}
+
 exports.handler = async function (event, context) {
-  // --- LÍNEA DE DEPURACIÓN AÑADIDA ---
   console.log('CLAVE PÚBLICA EN NETLIFY:', process.env.VAPID_PUBLIC_KEY);
 
   // Solo permitimos solicitudes POST
@@ -14,13 +27,28 @@ exports.handler = async function (event, context) {
 
   try {
     // Parseamos el cuerpo de la solicitud para obtener la suscripción
-    const subscription = JSON.parse(event.body);
+    const { userId, subscription } = JSON.parse(event.body);
 
-    // --- IMPORTANTE ---
-    // Por ahora, solo vamos a imprimir la suscripción en la consola.
-    // En una aplicación real, aquí guardarías esta información en una base de datos
-    // (como FaunaDB, MongoDB, o una simple tabla de Netlify).
-    console.log('Nueva suscripción recibida:', subscription);
+    if (!userId || !subscription) {
+      console.log('Error: Faltan userId o subscription');
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: 'Faltan userId o subscription' }),
+      };
+    }
+
+    const db = admin.firestore();
+    
+    // Guardar o actualizar la suscripción en Firebase
+    await db.collection('suscripciones').doc(userId).set({
+      userId: userId,
+      subscription: subscription,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+
+    console.log(`Suscripción guardada para usuario: ${userId}`);
+    console.log('Suscripción:', JSON.stringify(subscription, null, 2));
 
     return {
       statusCode: 200,

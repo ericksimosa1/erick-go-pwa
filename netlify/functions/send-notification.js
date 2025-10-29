@@ -1,62 +1,54 @@
 // netlify/functions/send-notification.js
 
 const webPush = require('web-push');
+const admin = require('firebase-admin');
 
-// Configuramos las claves VAPID que guardamos en Netlify
-const PUBLIC_VAPID_KEY = process.env.VAPID_PUBLIC_KEY;
-const PRIVATE_VAPID_KEY = process.env.VAPID_PRIVATE_KEY;
-
-// Es necesario configurar el 'subject' con tu email o sitio web
+// Configuramos las claves VAPID
 webPush.setVapidDetails(
   'mailto:erickgoapp@gmail.com',
-  PUBLIC_VAPID_KEY,
-  PRIVATE_VAPID_KEY
+  process.env.VAPID_PUBLIC_KEY,
+  process.env.VAPID_PRIVATE_KEY
 );
 
-// Función para obtener administradores globales desde Firebase
-async function getGlobalAdministrators() {
+// Inicializar Firebase Admin si no está inicializado
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
+    }),
+    databaseURL: `https://${process.env.FIREBASE_PROJECT_ID}.firebaseio.com`
+  });
+}
+
+// Función para obtener suscripciones de usuarios
+async function getUserSubscriptions(userIds) {
   try {
-    const admin = require('firebase-admin');
-    
-    // Inicializar Firebase Admin si no está inicializado
-    if (!admin.apps.length) {
-      admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId: process.env.FIREBASE_PROJECT_ID,
-          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-          privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
-        }),
-        databaseURL: `https://${process.env.FIREBASE_PROJECT_ID}.firebaseio.com`
-      });
-    }
-    
     const db = admin.firestore();
-    const usersRef = db.collection('usuarios');
-    const snapshot = await usersRef.where('rol', '==', 'administrador').get();
+    const subscriptions = [];
     
-    if (snapshot.empty) {
-      console.log('No se encontraron administradores globales');
-      return [];
+    for (const userId of userIds) {
+      const doc = await db.collection('suscripciones').doc(userId).get();
+      if (doc.exists) {
+        subscriptions.push({
+          userId: userId,
+          subscription: doc.data().subscription
+        });
+      }
     }
     
-    const administrators = [];
-    snapshot.forEach(doc => {
-      administrators.push({
-        id: doc.id,
-        ...doc.data()
-      });
-    });
-    
-    console.log(`Se encontraron ${administrators.length} administradores globales`);
-    return administrators;
+    return subscriptions;
   } catch (error) {
-    console.error('Error al obtener administradores globales:', error);
+    console.error('Error al obtener suscripciones:', error);
     return [];
   }
 }
 
 exports.handler = async function (event, context) {
-  // Solo permitimos solicitudes POST
+  console.log('=== INICIO send-notification ===');
+  console.log('Método HTTP:', event.httpMethod);
+  
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
@@ -65,47 +57,61 @@ exports.handler = async function (event, context) {
   }
 
   try {
-    // Parseamos el cuerpo de la solicitud para obtener la suscripción y el mensaje
-    const { subscription, payload, notificationType } = JSON.parse(event.body);
+    const body = JSON.parse(event.body);
+    console.log('Body recibido:', JSON.stringify(body, null, 2));
+    
+    const { userIds, payload, notificationType } = body;
 
-    if (!subscription || !payload) {
+    if (!userIds || !payload) {
+      console.log('Error: Faltan userIds o payload');
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: 'Faltan la suscripción o el payload' }),
+        body: JSON.stringify({ error: 'Faltan userIds o payload' }),
       };
     }
 
-    // Si es una notificación para administradores, obtener administradores globales
-    if (notificationType === 'admin') {
-      const administrators = await getGlobalAdministrators();
-      
-      if (administrators.length === 0) {
-        return {
-          statusCode: 200,
-          body: JSON.stringify({ message: 'No hay administradores a quienes notificar' }),
-        };
-      }
-      
-      console.log(`Enviando notificación a ${administrators.length} administradores`);
-      
-      // Aquí podrías enviar notificaciones a todos los administradores
-      // Por ahora, mantenemos la lógica original para una sola suscripción
+    console.log(`Buscando suscripciones para ${userIds.length} usuarios`);
+    
+    // Obtener suscripciones de los usuarios
+    const subscriptions = await getUserSubscriptions(userIds);
+    
+    if (subscriptions.length === 0) {
+      console.log('No hay suscripciones para notificar');
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ message: 'No hay suscripciones para notificar' }),
+      };
     }
 
-    // Enviamos la notificación usando web-push
-    await webPush.sendNotification(subscription, payload);
+    console.log(`Enviando notificaciones a ${subscriptions.length} suscripciones`);
+    
+    // Enviar notificaciones a todas las suscripciones
+    const results = [];
+    for (const { userId, subscription } of subscriptions) {
+      try {
+        await webPush.sendNotification(subscription, payload);
+        results.push({ userId, success: true });
+        console.log(`✅ Notificación enviada a usuario: ${userId}`);
+      } catch (error) {
+        results.push({ userId, success: false, error: error.message });
+        console.error(`❌ Error al enviar a usuario ${userId}:`, error);
+      }
+    }
 
-    console.log('Notificación enviada con éxito a:', subscription.endpoint);
+    console.log('Resultados:', JSON.stringify(results, null, 2));
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ message: 'Notificación enviada con éxito' }),
+      body: JSON.stringify({ 
+        message: 'Proceso completado',
+        results: results
+      }),
     };
   } catch (error) {
-    console.error('Error al enviar la notificación:', error);
+    console.error('Error al enviar notificaciones:', error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Error interno del servidor al enviar notificación' }),
+      body: JSON.stringify({ error: 'Error interno del servidor' }),
     };
   }
 };
