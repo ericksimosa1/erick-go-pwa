@@ -4,9 +4,8 @@ const webPush = require('web-push');
 const admin = require('firebase-admin');
 
 // Configurar claves VAPID
-// Asegúrate de que estas variables de entorno estén configuradas en Netlify
 webPush.setVapidDetails(
-  'mailto:erickgoapp@gmail.com', // <-- Reemplazado con tu email
+  'mailto:erickgoapp@gmail.com', // Reemplazado con tu email
   process.env.VAPID_PUBLIC_KEY,
   process.env.VAPID_PRIVATE_KEY
 );
@@ -25,7 +24,6 @@ if (!admin.apps.length) {
     console.log('Firebase Admin inicializado correctamente.');
   } catch (error) {
     console.error('Error al inicializar Firebase Admin:', error);
-    // No detenemos la ejecución, pero el log ayudará a depurar
   }
 }
 
@@ -40,7 +38,6 @@ async function getUserSubscriptions(userIds) {
       return [];
     }
 
-    // Usamos Promise.all para obtener las suscripciones en paralelo (más eficiente)
     const subscriptionPromises = userIds.map(async (userId) => {
       const doc = await db.collection('suscripciones').doc(userId).get();
       if (doc.exists) {
@@ -53,7 +50,7 @@ async function getUserSubscriptions(userIds) {
     });
 
     const results = await Promise.all(subscriptionPromises);
-    return results.filter(sub => sub !== null); // Filtramos los nulos
+    return results.filter(sub => sub !== null);
 
   } catch (error) {
     console.error('Error al obtener suscripciones:', error);
@@ -62,7 +59,7 @@ async function getUserSubscriptions(userIds) {
 }
 
 exports.handler = async function (event, context) {
-  console.log('=== INICIO send-notification ===');
+  console.log('=== INICIO send-notification (versión universal) ===');
   
   if (event.httpMethod !== 'POST') {
     return {
@@ -72,75 +69,88 @@ exports.handler = async function (event, context) {
   }
 
   try {
-    // Añadimos un log para ver exactamente qué se está recibiendo
-    console.log('Cuerpo de la petición (raw):', event.body);
-    
-    const { userIds, payload } = JSON.parse(event.body);
-    
-    console.log('Datos recibidos y parseados:');
-    console.log('- userIds:', userIds);
-    console.log('- payload:', payload);
-    
-    // Verificación robusta: si userIds no es un array, lo convertimos.
-    if (!Array.isArray(userIds)) {
-      if (userIds) {
-        console.log('Advertencia: userIds no era un array, se ha convertido a array.');
-        userIds = [userIds];
-      } else {
-        console.log('Error: El campo userIds es obligatorio y no fue proporcionado.');
+    const requestBody = JSON.parse(event.body);
+    console.log('Cuerpo de la petición recibido:', JSON.stringify(requestBody, null, 2));
+
+    const { userIds, userId, subscription, payload } = requestBody;
+
+    // --- CASO 1: Notificación manual desde el panel de admin ---
+    // Espera un array de userIds o un único userId
+    if (payload && (userIds || userId)) {
+      console.log('Detectado envío manual a usuarios.');
+      let targetUserIds = Array.isArray(userIds) ? userIds : (userId ? [userId] : []);
+      
+      if (targetUserIds.length === 0) {
         return {
           statusCode: 400,
-          body: JSON.stringify({ error: 'Falta el campo obligatorio: userIds' }),
+          body: JSON.stringify({ error: 'Falta el campo userId o userIds para la notificación manual.' }),
         };
       }
-    }
-    
-    if (!payload) {
-        console.log('Error: El campo payload es obligatorio y no fue proporcionado.');
+
+      const subscriptions = await getUserSubscriptions(targetUserIds);
+      
+      if (subscriptions.length === 0) {
+        console.log('No se encontraron suscripciones para los usuarios seleccionados.');
         return {
-            statusCode: 400,
-            body: JSON.stringify({ error: 'Falta el campo obligatorio: payload' }),
+          statusCode: 200,
+          body: JSON.stringify({ message: 'No hay suscripciones para notificar' }),
         };
-    }
-    
-    // Obtener suscripciones de los usuarios
-    const subscriptions = await getUserSubscriptions(userIds);
-    
-    if (subscriptions.length === 0) {
-      console.log('No se encontraron suscripciones activas para los userIds proporcionados.');
+      }
+
+      console.log(`Enviando notificación a ${subscriptions.length} suscripciones encontradas.`);
+      const results = await Promise.allSettled(
+        subscriptions.map(async ({ userId, subscription }) => {
+          try {
+            await webPush.sendNotification(subscription, JSON.stringify(payload));
+            console.log(`✅ Notificación enviada con éxito al usuario: ${userId}`);
+            return { userId, success: true };
+          } catch (error) {
+            console.error(`❌ Error al enviar notificación al usuario ${userId}:`, error.message);
+            return { userId, success: false, error: error.message };
+          }
+        })
+      );
+
       return {
         statusCode: 200,
-        body: JSON.stringify({ message: 'No hay suscripciones para notificar' }),
+        body: JSON.stringify({ 
+          message: 'Proceso de notificación manual completado.',
+          results: results
+        }),
+      };
+    } 
+    
+    // --- CASO 2: Notificación automática ---
+    // Espera un objeto de suscripción directo
+    else if (payload && subscription) {
+      console.log('Detectado envío automático a una suscripción.');
+      try {
+        await webPush.sendNotification(subscription, JSON.stringify(payload));
+        console.log('✅ Notificación automática enviada con éxito.');
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ message: 'Notificación automática enviada con éxito.' }),
+        };
+      } catch (error) {
+        console.error('❌ Error al enviar notificación automática:', error.message);
+        return {
+          statusCode: 500,
+          body: JSON.stringify({ error: 'Error al enviar notificación automática.', details: error.message }),
+        };
+      }
+    } 
+    
+    // --- CASO 3: Error, el formato de la petición es incorrecto ---
+    else {
+      console.error('Error: El formato de la petición no es válido.');
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ 
+          error: 'Formato de petición inválido. Se requiere {userIds: [...], payload: {...}} o {subscription: {...}, payload: {...}}.' 
+        }),
       };
     }
 
-    console.log(`Se encontraron ${subscriptions.length} suscripciones. Enviando notificaciones...`);
-    
-    // Enviar notificaciones a todas las suscripciones encontradas
-    const results = await Promise.allSettled(
-      subscriptions.map(async ({ userId, subscription }) => {
-        try {
-          await webPush.sendNotification(subscription, JSON.stringify(payload));
-          console.log(`✅ Notificación enviada con éxito al usuario: ${userId}`);
-          return { userId, success: true };
-        } catch (error) {
-          console.error(`❌ Error al enviar notificación al usuario ${userId}:`, error.message);
-          // Si el error es 410 (Gone), significa que la suscripción ya no es válida.
-          // Aquí podrías añadir lógica para borrarla de Firestore.
-          return { userId, success: false, error: error.message };
-        }
-      })
-    );
-
-    console.log('Resultados del envío:', results);
-
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ 
-        message: 'Proceso de notificación completado.',
-        results: results
-      }),
-    };
   } catch (error) {
     console.error('Error general en la función send-notification:', error);
     return {
