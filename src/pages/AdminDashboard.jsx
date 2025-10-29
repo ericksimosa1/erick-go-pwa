@@ -609,7 +609,7 @@ export default function AdminDashboard() {
         }
     };
 
-    // --- NUEVA FUNCIÓN PARA ENVIAR NOTIFICACIONES MANUALES ---
+    // --- FUNCIÓN CORREGIDA PARA ENVIAR NOTIFICACIONES MANUALES ---
     const handleSendManualNotification = async () => {
         if (!notificationTitle || !notificationBody) {
             alert('Por favor, completa tanto el título como el cuerpo de la notificación.');
@@ -637,6 +637,9 @@ export default function AdminDashboard() {
                 return;
             }
 
+            // 1. Creamos un array con todos los IDs de usuario
+            const userIds = targetUsers.map(user => user.userId);
+
             const notificationPayload = {
                 title: notificationTitle,
                 body: notificationBody,
@@ -644,25 +647,31 @@ export default function AdminDashboard() {
                 data: { url: '/' }
             };
 
-            const notificationPromises = targetUsers.map(user => {
-                return fetch('/.netlify/functions/send-notification', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        userId: user.userId,
-                        payload: notificationPayload,
-                    }),
-                });
+            // 2. Enviamos una única solicitud con el array de IDs
+            const response = await fetch('/.netlify/functions/send-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userIds: userIds, // <-- CAMBIO CLAVE: Enviamos un array
+                    payload: notificationPayload,
+                }),
             });
 
-            await Promise.all(notificationPromises);
+            // 3. Verificamos si la respuesta del servidor fue exitosa
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Error al enviar la notificación.');
+            }
+
+            const result = await response.json();
             setNotificationSuccess(`¡Notificación enviada exitosamente a ${targetUsers.length} usuario(s)!`);
             setNotificationTitle('');
             setNotificationBody('');
             setSelectedTargetUser('');
+
         } catch (error) {
             console.error('Error al enviar notificación manual:', error);
-            alert('Hubo un error al enviar la notificación. Por favor, inténtalo de nuevo.');
+            alert(`Hubo un error al enviar la notificación: ${error.message}`);
         } finally {
             setIsSendingNotification(false);
         }
