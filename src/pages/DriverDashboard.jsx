@@ -1,4 +1,5 @@
 // src/pages/DriverDashboard.jsx
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Box, Typography, Paper, List, ListItem, ListItemText, Alert, Button, CircularProgress, ToggleButton, ToggleButtonGroup, Divider, Card, CardContent } from '@mui/material';
 import { PlayArrow as PlayArrowIcon, ViewList as ViewListIcon, Category as CategoryIcon, Done as DoneIcon, Stop as StopIcon, AccessTime as AccessTimeIcon } from '@mui/icons-material';
@@ -67,27 +68,31 @@ export default function DriverDashboard() {
         const notificationPayload = {
             title: '¡Tu viaje ha comenzado!',
             body: `Tu conductor, ${user.nombre}, está en camino. Prepárate para abordar.`,
-            icon: '/erick-go-logo.png', // Asegúrate de que este icono exista
+            icon: '/erick-go-logo.png',
             data: {
-                url: '/empleado-dashboard' // URL a la que se abrirá al hacer clic
+                url: '/empleado-dashboard'
             }
         };
 
-        const notificationPromises = employees.map(employee => {
-            return fetch('/.netlify/functions/send-notification', {
+        // <-- CORRECCIÓN: Extraer los IDs de los empleados en un array
+        const employeeIds = employees.map(emp => emp.empleadoId);
+
+        try {
+            const response = await fetch('/.netlify/functions/send-notification', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    userId: employee.empleadoId, // El ID del empleado en Firebase Auth
+                    userIds: employeeIds, // <-- CORRECCIÓN: Usar userIds (plural) con un array
                     payload: notificationPayload,
                 }),
             });
-        });
 
-        try {
-            await Promise.all(notificationPromises);
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
+
             console.log('Notificaciones de inicio de viaje enviadas exitosamente.');
         } catch (error) {
             console.error('Error al enviar una o más notificaciones de inicio de viaje:', error);
@@ -98,10 +103,8 @@ export default function DriverDashboard() {
     const sendTripStatusToAdmins = async (status, driverName, employeeCount) => {
         console.log(`Enviando notificación de viaje ${status} a administradores...`);
         
-        // 1. Obtener la lista de administradores para esta empresa de forma segura
         const admins = allUsers.filter(u => u && u.userData && u.userData.rol === 'administrador');
         
-        // --- LÍNEA DE VERIFICACIÓN ---
         console.log('VERIFICACIÓN: Lista de usuarios filtrados como administradores:', admins);
 
         if (admins.length === 0) {
@@ -109,7 +112,6 @@ export default function DriverDashboard() {
             return;
         }
 
-        // 2. Construir el payload dinámicamente
         let notificationPayload;
         if (status === 'started') {
             notificationPayload = {
@@ -127,20 +129,23 @@ export default function DriverDashboard() {
             };
         }
 
-        // 3. Enviar a todos los administradores en paralelo
-        const notificationPromises = admins.map(admin => {
-            return fetch('/.netlify/functions/send-notification', {
+        // <-- CORRECCIÓN: Extraer los IDs de los administradores en un array
+        const adminIds = admins.map(admin => admin.userId);
+
+        try {
+            const response = await fetch('/.netlify/functions/send-notification', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    userId: admin.userId,
+                    userIds: adminIds, // <-- CORRECCIÓN: Usar userIds (plural) con un array
                     payload: notificationPayload,
                 }),
             });
-        });
 
-        try {
-            await Promise.all(notificationPromises);
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
+
             console.log(`Notificación de viaje ${status} enviada a ${admins.length} administrador(es).`);
         } catch (error) {
             console.error(`Error al enviar notificación de viaje ${status} a administradores:`, error);
@@ -514,16 +519,21 @@ export default function DriverDashboard() {
             };
 
             try {
-                await fetch('/.netlify/functions/send-notification', {
+                const response = await fetch('/.netlify/functions/send-notification', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        userId: employeeId, // El ID del empleado específico
+                        userIds: [employeeId], // <-- CORRECCIÓN: Usar userIds (plural) con un array
                         payload: notificationPayload,
                     }),
                 });
+
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+
                 console.log(`Notificación de viaje completado enviada a ${asistencia.empleadoNombre}`);
             } catch (error) {
                 console.error(`Error al enviar notificación de viaje completado a ${asistencia.empleadoNombre}:`, error);

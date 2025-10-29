@@ -8,8 +8,8 @@ if (!admin.apps.length) {
     admin.initializeApp({
       credential: admin.credential.cert({
         project_id: process.env.FIREBASE_PROJECT_ID,
-        client_email: process.env.FIREBASE_CLIENT_EMAIL, // <-- CAMBIO: client_email
-        private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n') // <-- CAMBIO: private_key
+        client_email: process.env.FIREBASE_CLIENT_EMAIL, // <-- CORRECCIÓN CLAVE
+        private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n') // <-- CORRECCIÓN CLAVE
       }),
       databaseURL: `https://${process.env.FIREBASE_PROJECT_ID}.firebaseio.com`
     });
@@ -21,12 +21,6 @@ if (!admin.apps.length) {
 
 exports.handler = async function (event, context) {
   console.log('=== INICIO save-subscription (versión corregida) ===');
-  
-  // Registrar todas las variables de entorno (sin mostrar valores sensibles)
-  console.log('Variables de entorno disponibles:');
-  console.log('FIREBASE_PROJECT_ID:', process.env.FIREBASE_PROJECT_ID ? 'Configurada' : 'No configurada');
-  console.log('FIREBASE_CLIENT_EMAIL:', process.env.FIREBASE_CLIENT_EMAIL ? 'Configurada' : 'No configurada');
-  console.log('FIREBASE_PRIVATE_KEY:', process.env.FIREBASE_PRIVATE_KEY ? 'Configurada' : 'No configurada');
   
   if (event.httpMethod !== 'POST') {
     return {
@@ -57,7 +51,6 @@ exports.handler = async function (event, context) {
     }, { merge: true });
 
     console.log(`Suscripción guardada para usuario: ${userId}`);
-    console.log('Suscripción:', JSON.stringify(subscription, null, 2));
 
     return {
       statusCode: 200,

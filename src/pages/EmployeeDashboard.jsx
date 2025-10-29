@@ -1,4 +1,5 @@
 // src/pages/EmployeeDashboard.jsx
+
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, Paper, List, ListItem, Alert, Button, CircularProgress, TextField, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import { HowToReg as HowToRegIcon, CheckCircle as CheckCircleIcon, AccessTime as AccessTimeIcon } from '@mui/icons-material';
@@ -60,22 +61,22 @@ export default function EmployeeDashboard() {
                 return;
             }
 
-            // 3. Crear un array de promesas para enviar todas las notificaciones en paralelo
-            const notificationPromises = validDriverIds.map(driverId => {
-                return fetch('/.netlify/functions/send-notification', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        userId: driverId,
-                        payload: notificationPayload,
-                    }),
-                });
+            // 3. Enviar la notificación usando el array de IDs
+            const response = await fetch('/.netlify/functions/send-notification', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    userIds: validDriverIds, // <-- CORRECCIÓN: Usar userIds (plural) con un array
+                    payload: notificationPayload,
+                }),
             });
 
-            // 4. Esperar a que todas las promesas se resuelvan
-            await Promise.all(notificationPromises);
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
+
             console.log(`Notificaciones de asistencia enviadas exitosamente a ${validDriverIds.length} conductores.`);
         } catch (error) {
             console.error('Error al enviar una o más notificaciones de asistencia:', error);

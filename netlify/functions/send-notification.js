@@ -16,8 +16,8 @@ if (!admin.apps.length) {
     admin.initializeApp({
       credential: admin.credential.cert({
         project_id: process.env.FIREBASE_PROJECT_ID,
-        client_email: process.env.FIREBASE_CLIENT_EMAIL, // <-- CAMBIO: client_email
-        private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n') // <-- CAMBIO: private_key
+        client_email: process.env.FIREBASE_CLIENT_EMAIL, // <-- CORRECCIÓN CLAVE
+        private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n') // <-- CORRECCIÓN CLAVE
       }),
       databaseURL: `https://${process.env.FIREBASE_PROJECT_ID}.firebaseio.com`
     });
@@ -33,6 +33,12 @@ async function getUserSubscriptions(userIds) {
     const db = admin.firestore();
     const subscriptions = [];
     
+    // <-- CORRECCIÓN: Verificar que userIds es un array válido
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+      console.log('getUserSubscriptions: userIds no es un array válido o está vacío.');
+      return [];
+    }
+
     for (const userId of userIds) {
       const doc = await db.collection('suscripciones').doc(userId).get();
       if (doc.exists) {
@@ -53,14 +59,6 @@ async function getUserSubscriptions(userIds) {
 exports.handler = async function (event, context) {
   console.log('=== INICIO send-notification (versión corregida) ===');
   
-  // Registrar todas las variables de entorno (sin mostrar valores sensibles)
-  console.log('Variables de entorno disponibles:');
-  console.log('FIREBASE_PROJECT_ID:', process.env.FIREBASE_PROJECT_ID ? 'Configurada' : 'No configurada');
-  console.log('FIREBASE_CLIENT_EMAIL:', process.env.FIREBASE_CLIENT_EMAIL ? 'Configurada' : 'No configurada');
-  console.log('FIREBASE_PRIVATE_KEY:', process.env.FIREBASE_PRIVATE_KEY ? 'Configurada' : 'No configurada');
-  console.log('VAPID_PUBLIC_KEY:', process.env.VAPID_PUBLIC_KEY ? 'Configurada' : 'No configurada');
-  console.log('VAPID_PRIVATE_KEY:', process.env.VAPID_PRIVATE_KEY ? 'Configurada' : 'No configurada');
-  
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
@@ -75,6 +73,15 @@ exports.handler = async function (event, context) {
     console.log('userIds:', userIds);
     console.log('payload:', payload);
     console.log('notificationType:', notificationType);
+    
+    // <-- CORRECCIÓN: Verificar que userIds exista antes de continuar
+    if (!userIds) {
+      console.log('Error: userIds no fue proporcionado en el cuerpo de la petición.');
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: 'Falta el campo userIds en la petición' }),
+      };
+    }
     
     // Obtener suscripciones de los usuarios
     const subscriptions = await getUserSubscriptions(userIds);
@@ -93,7 +100,7 @@ exports.handler = async function (event, context) {
     const results = [];
     for (const { userId, subscription } of subscriptions) {
       try {
-        await webPush.sendNotification(subscription, payload);
+        await webPush.sendNotification(subscription, JSON.stringify(payload)); // <-- CORRECCIÓN: Stringify payload
         results.push({ userId, success: true });
         console.log(`✅ Notificación enviada a usuario: ${userId}`);
       } catch (error) {
