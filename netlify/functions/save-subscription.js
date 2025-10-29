@@ -6,7 +6,7 @@ const admin = require('firebase-admin');
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert({
-      project_id: process.env.FIREBASE_PROJECT_ID, // Cambiado a project_id
+      project_id: process.env.FIREBASE_PROJECT_ID,
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
       privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
     }),
@@ -15,8 +15,8 @@ if (!admin.apps.length) {
 }
 
 exports.handler = async function (event, context) {
-  console.log('CLAVE PÚBLICA EN NETLIFY:', process.env.VAPID_PUBLIC_KEY);
-
+  console.log('=== INICIO save-subscription (versión corregida) ===');
+  
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
@@ -50,7 +50,10 @@ exports.handler = async function (event, context) {
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ message: 'Suscripción guardada con éxito' }),
+      body: JSON.stringify({ 
+        message: 'Suscripción guardada con éxito',
+        userId: userId
+      }),
     };
   } catch (error) {
     console.error('Error al guardar la suscripción:', error);

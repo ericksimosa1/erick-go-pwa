@@ -3,18 +3,11 @@
 const webPush = require('web-push');
 const admin = require('firebase-admin');
 
-// Configuramos las claves VAPID
-webPush.setVapidDetails(
-  'mailto:erickgoapp@gmail.com',
-  process.env.VAPID_PUBLIC_KEY,
-  process.env.VAPID_PRIVATE_KEY
-);
-
 // Inicializar Firebase Admin si no está inicializado
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert({
-      project_id: process.env.FIREBASE_PROJECT_ID, // Cambiado a project_id
+      project_id: process.env.FIREBASE_PROJECT_ID,
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
       privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
     }),
@@ -46,8 +39,7 @@ async function getUserSubscriptions(userIds) {
 }
 
 exports.handler = async function (event, context) {
-  console.log('=== INICIO send-notification ===');
-  console.log('Método HTTP:', event.httpMethod);
+  console.log('=== INICIO send-notification (versión corregida) ===');
   
   if (event.httpMethod !== 'POST') {
     return {
@@ -57,20 +49,12 @@ exports.handler = async function (event, context) {
   }
 
   try {
-    const body = JSON.parse(event.body);
-    console.log('Body recibido:', JSON.stringify(body, null, 2));
+    const { userIds, payload, notificationType } = JSON.parse(event.body);
     
-    const { userIds, payload, notificationType } = body;
-
-    if (!userIds || !payload) {
-      console.log('Error: Faltan userIds o payload');
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: 'Faltan userIds o payload' }),
-      };
-    }
-
-    console.log(`Buscando suscripciones para ${userIds.length} usuarios`);
+    console.log('Datos recibidos:');
+    console.log('userIds:', userIds);
+    console.log('payload:', payload);
+    console.log('notificationType:', notificationType);
     
     // Obtener suscripciones de los usuarios
     const subscriptions = await getUserSubscriptions(userIds);
