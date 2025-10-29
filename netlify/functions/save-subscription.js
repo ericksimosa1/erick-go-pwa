@@ -4,18 +4,29 @@ const admin = require('firebase-admin');
 
 // Inicializar Firebase Admin si no está inicializado
 if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      project_id: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
-    }),
-    databaseURL: `https://${process.env.FIREBASE_PROJECT_ID}.firebaseio.com`
-  });
+  try {
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        project_id: process.env.FIREBASE_PROJECT_ID,
+        client_email: process.env.FIREBASE_CLIENT_EMAIL, // <-- CAMBIO: client_email
+        private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n') // <-- CAMBIO: private_key
+      }),
+      databaseURL: `https://${process.env.FIREBASE_PROJECT_ID}.firebaseio.com`
+    });
+    console.log('Firebase Admin inicializado correctamente');
+  } catch (error) {
+    console.error('Error al inicializar Firebase Admin:', error);
+  }
 }
 
 exports.handler = async function (event, context) {
   console.log('=== INICIO save-subscription (versión corregida) ===');
+  
+  // Registrar todas las variables de entorno (sin mostrar valores sensibles)
+  console.log('Variables de entorno disponibles:');
+  console.log('FIREBASE_PROJECT_ID:', process.env.FIREBASE_PROJECT_ID ? 'Configurada' : 'No configurada');
+  console.log('FIREBASE_CLIENT_EMAIL:', process.env.FIREBASE_CLIENT_EMAIL ? 'Configurada' : 'No configurada');
+  console.log('FIREBASE_PRIVATE_KEY:', process.env.FIREBASE_PRIVATE_KEY ? 'Configurada' : 'No configurada');
   
   if (event.httpMethod !== 'POST') {
     return {
@@ -59,7 +70,7 @@ exports.handler = async function (event, context) {
     console.error('Error al guardar la suscripción:', error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Error interno del servidor' }),
+      body: JSON.stringify({ error: 'Error interno del servidor', details: error.message }),
     };
   }
 };

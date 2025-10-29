@@ -3,7 +3,7 @@
 // --- LÓGICA DE CACHÉ (PWA) ---
 // Esta sección es excelente para que tu app funcione sin internet.
 
-const CACHE_NAME = 'erick-go-cache-v3'; // <-- CAMBIO: Versión de caché actualizada para forzar la limpieza.
+const CACHE_NAME = 'erick-go-cache-v4'; // <-- CAMBIO: Versión de caché actualizada para forzar la limpieza.
 const urlsToCache = [
   '/',
   '/erick-go-logo.png',
